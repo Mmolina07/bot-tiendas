@@ -1,0 +1,38 @@
+import { ErrorIA, type EntradaIA, type ProveedorIA } from "./proveedor";
+
+const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+
+type RespuestaGemini = {
+  candidates?: { content?: { parts?: { text?: string }[] } }[];
+};
+
+export function crearProveedorGemini(op: { apiKey: string; modelo: string; fetch?: typeof fetch }): ProveedorIA {
+  const pedir = op.fetch ?? fetch;
+  return {
+    async generar(entrada: EntradaIA): Promise<string> {
+      let r: Response;
+      try {
+        r = await pedir(`${BASE}/${op.modelo}:generateContent`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-goog-api-key": op.apiKey },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: entrada.sistema }] },
+            contents: entrada.mensajes.map((m) => ({
+              role: m.rol === "cliente" ? "user" : "model",
+              parts: [{ text: m.texto }],
+            })),
+            generationConfig: { temperature: 0.3, maxOutputTokens: 500 },
+          }),
+        });
+      } catch (e) {
+        throw new ErrorIA(`Fallo de red con Gemini: ${(e as Error).message}`);
+      }
+      if (!r.ok) throw new ErrorIA(`Gemini respondió ${r.status}`, r.status);
+
+      const datos = (await r.json().catch(() => ({}))) as RespuestaGemini;
+      const texto = (datos.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
+      if (!texto) throw new ErrorIA("Gemini no devolvió texto");
+      return texto;
+    },
+  };
+}
