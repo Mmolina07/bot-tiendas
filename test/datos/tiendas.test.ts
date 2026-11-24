@@ -49,4 +49,9 @@ describe("datos/tiendas", () => {
       reglas: [],
     });
   });
+
+  it("las reglas por defecto no se pueden modificar", () => {
+    expect(() => (CONFIGURACION_POR_DEFECTO.reglas as string[]).push("x")).toThrow(TypeError);
+    expect(CONFIGURACION_POR_DEFECTO.reglas).toEqual([]);
+  });
 });

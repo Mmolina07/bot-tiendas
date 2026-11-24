@@ -14,12 +14,13 @@ export type Tienda = {
   creadaEn: number;
 };
 
-export const CONFIGURACION_POR_DEFECTO: Readonly<ConfiguracionTienda> = Object.freeze({
-  tono: "amable y cercano",
-  bienvenida: "¡Hola! ¿En qué te puedo ayudar?",
-  horario: null,
-  reglas: [],
-});
+export const CONFIGURACION_POR_DEFECTO: Readonly<Omit<ConfiguracionTienda, "reglas"> & { reglas: readonly string[] }> =
+  Object.freeze({
+    tono: "amable y cercano",
+    bienvenida: "¡Hola! ¿En qué te puedo ayudar?",
+    horario: null,
+    reglas: Object.freeze([]),
+  });
 
 type FilaTienda = {
   id: string;
