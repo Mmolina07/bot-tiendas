@@ -21,4 +21,10 @@ describe("app", () => {
     expect(r.status).toBe(500);
     expect(await r.json()).toEqual({ error: "Error interno" });
   });
+
+  it("HTTPException conserva su estado y responde JSON", async () => {
+    const r = await pedir("/_prueba/no-autorizado");
+    expect(r.status).toBe(401);
+    expect(await r.json()).toEqual({ error: "No autorizado" });
+  });
 });
