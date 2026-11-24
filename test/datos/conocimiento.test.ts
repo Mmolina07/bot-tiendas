@@ -1,6 +1,13 @@
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
-import { crearConocimiento, listarConocimiento } from "../../src/datos/conocimiento";
+import {
+  actualizarConocimiento,
+  borrarConocimiento,
+  crearConocimiento,
+  crearConocimientoEnLote,
+  listarConocimiento,
+  obtenerConocimiento,
+} from "../../src/datos/conocimiento";
 import { crearTienda } from "../../src/datos/tiendas";
 
 describe("datos/conocimiento", () => {
@@ -35,5 +42,27 @@ describe("datos/conocimiento", () => {
       .run();
     const [e] = await listarConocimiento(env.DB, t.id);
     expect(e.datosProducto).toBeNull();
+  });
+
+  it("actualizar y borrar respetan la tienda", async () => {
+    const a = await crearTienda(env.DB, { nombre: "A" });
+    const b = await crearTienda(env.DB, { nombre: "B" });
+    const e = await crearConocimiento(env.DB, { tiendaId: a.id, tipo: "faq", titulo: "Original", contenido: "o", datosProducto: null });
+    const cambio = { tipo: "faq" as const, titulo: "Cambiado", contenido: "c", datosProducto: null };
+    expect(await actualizarConocimiento(env.DB, b.id, e.id, cambio)).toBeNull();
+    expect(await borrarConocimiento(env.DB, b.id, e.id)).toBe(false);
+    expect((await obtenerConocimiento(env.DB, a.id, e.id))?.titulo).toBe("Original");
+    expect((await actualizarConocimiento(env.DB, a.id, e.id, cambio))?.titulo).toBe("Cambiado");
+    expect(await borrarConocimiento(env.DB, a.id, e.id)).toBe(true);
+    expect(await obtenerConocimiento(env.DB, a.id, e.id)).toBeNull();
+  });
+
+  it("crearConocimientoEnLote inserta todas en un batch", async () => {
+    const t = await crearTienda(env.DB, { nombre: "L" });
+    const lista = Array.from({ length: 30 }, (_, i) => ({ tipo: "faq" as const, titulo: `F${i}`, contenido: "x", datosProducto: null }));
+    const creadas = await crearConocimientoEnLote(env.DB, t.id, lista);
+    expect(creadas).toHaveLength(30);
+    expect(creadas.every((e) => e.tiendaId === t.id)).toBe(true);
+    expect(await listarConocimiento(env.DB, t.id)).toHaveLength(30);
   });
 });

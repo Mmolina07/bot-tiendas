@@ -10,6 +10,8 @@ export type EntradaConocimiento = {
   actualizadoEn: number;
 };
 
+export type DatosEntrada = Omit<EntradaConocimiento, "id" | "actualizadoEn" | "tiendaId">;
+
 type Fila = {
   id: string;
   tienda_id: string;
@@ -87,4 +89,58 @@ export async function obtenerConocimientoPorIds(db: D1Database, tiendaId: string
     .all<Fila>();
   const porId = new Map(results.map((f) => [f.id, aEntrada(f)]));
   return ids.flatMap((id) => porId.get(id) ?? []);
+}
+
+const serializarProducto = (d: DatosProducto | null) => (d ? JSON.stringify(d) : null);
+
+export async function obtenerConocimiento(db: D1Database, tiendaId: string, id: string): Promise<EntradaConocimiento | null> {
+  const fila = await db
+    .prepare(`SELECT ${COLUMNAS} FROM conocimiento WHERE id = ? AND tienda_id = ?`)
+    .bind(id, tiendaId)
+    .first<Fila>();
+  return fila ? aEntrada(fila) : null;
+}
+
+export async function actualizarConocimiento(
+  db: D1Database,
+  tiendaId: string,
+  id: string,
+  d: DatosEntrada,
+): Promise<EntradaConocimiento | null> {
+  const fila = await db
+    .prepare(
+      `UPDATE conocimiento SET tipo = ?, titulo = ?, contenido = ?, datos_producto = ?, actualizado_en = ?
+       WHERE id = ? AND tienda_id = ? RETURNING ${COLUMNAS}`,
+    )
+    .bind(d.tipo, d.titulo, d.contenido, serializarProducto(d.datosProducto), Date.now(), id, tiendaId)
+    .first<Fila>();
+  return fila ? aEntrada(fila) : null;
+}
+
+export async function borrarConocimiento(db: D1Database, tiendaId: string, id: string): Promise<boolean> {
+  const r = await db.prepare("DELETE FROM conocimiento WHERE id = ? AND tienda_id = ?").bind(id, tiendaId).run();
+  return r.meta.changes > 0;
+}
+
+export async function crearConocimientoEnLote(
+  db: D1Database,
+  tiendaId: string,
+  lista: DatosEntrada[],
+): Promise<EntradaConocimiento[]> {
+  if (lista.length === 0) return [];
+  const ahora = Date.now();
+  const entradas: EntradaConocimiento[] = lista.map((d) => ({ ...d, id: crypto.randomUUID(), tiendaId, actualizadoEn: ahora }));
+  // Varias filas por sentencia (D1: máx. 100 parámetros por sentencia y ~50 consultas por petición en el plan gratuito).
+  const FILAS_POR_SENTENCIA = 14; // 14 × 7 columnas = 98 parámetros
+  const sentencias: D1PreparedStatement[] = [];
+  for (let i = 0; i < entradas.length; i += FILAS_POR_SENTENCIA) {
+    const grupo = entradas.slice(i, i + FILAS_POR_SENTENCIA);
+    sentencias.push(
+      db
+        .prepare(`INSERT INTO conocimiento (${COLUMNAS}) VALUES ${grupo.map(() => "(?, ?, ?, ?, ?, ?, ?)").join(", ")}`)
+        .bind(...grupo.flatMap((e) => [e.id, tiendaId, e.tipo, e.titulo, e.contenido, serializarProducto(e.datosProducto), ahora])),
+    );
+  }
+  await db.batch(sentencias);
+  return entradas;
 }
