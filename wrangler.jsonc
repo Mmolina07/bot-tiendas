@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bot-tiendas",
   "main": "src/index.ts",
+  "assets": { "directory": "public", "binding": "ASSETS" },
   "compatibility_date": "2026-11-23",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },

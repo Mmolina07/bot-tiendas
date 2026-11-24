@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Simulador de chat — Tostadero Aurora</title>
+  <meta name="description" content="Demo de un bot de atención para tiendas por WhatsApp.">
+  <link rel="stylesheet" href="simulador.css">
+</head>
+<body>
+  <main class="chat" aria-label="Chat con la tienda">
+    <header class="cabecera">
+      <div class="avatar" aria-hidden="true">☕</div>
+      <div class="cabecera-texto">
+        <h1 id="nombre-tienda">Cargando…</h1>
+        <p id="estado" class="estado">en línea</p>
+      </div>
+      <span class="etiqueta-demo" title="Datos ficticios">demo</span>
+    </header>
+
+    <ol id="mensajes" class="mensajes" aria-live="polite"></ol>
+
+    <form id="formulario" class="formulario" autocomplete="off">
+      <label for="entrada" class="solo-lectores">Escribe un mensaje</label>
+      <input id="entrada" name="texto" type="text" maxlength="1000" placeholder="Escribe un mensaje" required>
+      <button id="enviar" type="submit" aria-label="Enviar">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
+      </button>
+    </form>
+  </main>
+  <script src="simulador.js" defer></script>
+</body>
+</html>
