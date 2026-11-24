@@ -64,4 +64,16 @@ describe("ia/gemini", () => {
     });
     await expect(crearProveedorGemini({ apiKey: "K", modelo: "m", fetch: f }).generar(entrada)).rejects.toBeInstanceOf(ErrorIA);
   });
+
+  it("desactiva el razonamiento interno para no gastar el límite de tokens", async () => {
+    const { f, llamadas } = fetchFalso(okCon({ candidates: [{ content: { parts: [{ text: "ok" }] } }] }));
+    await crearProveedorGemini({ apiKey: "K", modelo: "m", fetch: f }).generar(entrada);
+    const cuerpo = JSON.parse(String(llamadas[0].init.body));
+    expect(cuerpo.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
+  });
+
+  it("respuesta cortada por límite de tokens → ErrorIA", async () => {
+    const { f } = fetchFalso(okCon({ candidates: [{ finishReason: "MAX_TOKENS", content: { parts: [{ text: "Te recomiendo el" }] } }] }));
+    await expect(crearProveedorGemini({ apiKey: "K", modelo: "m", fetch: f }).generar(entrada)).rejects.toBeInstanceOf(ErrorIA);
+  });
 });
