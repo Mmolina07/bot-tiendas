@@ -3,5 +3,7 @@ declare namespace Cloudflare {
   interface Env {
     ENTORNO?: string;
     GEMINI_API_KEY: string;
+    PANEL_USUARIO?: string;
+    PANEL_CLAVE?: string;
   }
 }

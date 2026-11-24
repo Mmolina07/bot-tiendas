@@ -9,6 +9,8 @@ export default defineConfig({
         bindings: {
           ENTORNO: "test",
           GEMINI_API_KEY: "clave-de-prueba",
+          PANEL_USUARIO: "admin",
+          PANEL_CLAVE: "clave-prueba",
           TEST_MIGRATIONS: await readD1Migrations("./migrations"),
         },
       },

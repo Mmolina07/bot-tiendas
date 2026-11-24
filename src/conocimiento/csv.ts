@@ -41,7 +41,7 @@ export function leerCsv(texto: string): string[][] {
 }
 
 /** "12000", "12.000", "1.250.000", "12,000" y "12000.5" → número; cualquier otra cosa → null. */
-function leerPrecio(crudo: string): number | null {
+export function leerPrecio(crudo: string): number | null {
   const t = crudo.trim();
   if (/^\d{1,3}([.,]\d{3})+$/.test(t)) return Number(t.replace(/[.,]/g, ""));
   if (/^\d+(\.\d{1,2})?$/.test(t)) return Number(t);
