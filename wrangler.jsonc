@@ -9,7 +9,7 @@
     {
       "binding": "DB",
       "database_name": "bot-tiendas-db",
-      "database_id": "local-pendiente",
+      "database_id": "740a8b00-75df-44a4-8a0a-ed99613b3417",
       "migrations_dir": "migrations"
     }
   ]
