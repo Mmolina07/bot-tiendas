@@ -6,6 +6,7 @@ import {
   crearBuscadorVectorize,
   MODELO_EMBEDDINGS,
   RESULTADOS_BUSQUEDA,
+  UMBRAL_TODO_EL_CONOCIMIENTO,
   textoParaIndexar,
 } from "../../src/conocimiento/buscador";
 import { crearConocimiento, type EntradaConocimiento } from "../../src/datos/conocimiento";
@@ -56,6 +57,15 @@ const entrada = (i: number, tiendaId = "t"): EntradaConocimiento => ({
   actualizadoEn: 0,
 });
 
+async function tiendaGrande() {
+  const t = await crearTienda(env.DB, { nombre: "G" });
+  for (let i = 0; i < 41; i++)
+    await crearConocimiento(env.DB, { tiendaId: t.id, tipo: "faq", titulo: `Relleno ${String(i).padStart(2, "0")}`, contenido: "r", datosProducto: null });
+  const a = await crearConocimiento(env.DB, { tiendaId: t.id, tipo: "faq", titulo: "A", contenido: "a", datosProducto: null });
+  const b = await crearConocimiento(env.DB, { tiendaId: t.id, tipo: "faq", titulo: "B", contenido: "b", datosProducto: null });
+  return { t, a, b };
+}
+
 async function tiendaConDos() {
   const t = await crearTienda(env.DB, { nombre: "T" });
   const a = await crearConocimiento(env.DB, { tiendaId: t.id, tipo: "faq", titulo: "A", contenido: "a", datosProducto: null });
@@ -82,7 +92,7 @@ describe("conocimiento/buscador", () => {
   });
 
   it("buscar filtra por tienda y respeta el orden de relevancia", async () => {
-    const { t, a, b } = await tiendaConDos();
+    const { t, a, b } = await tiendaGrande();
     const { ai } = aiFalsa();
     const { indice, consultas } = indiceFalso([b.id, a.id, "borrado"]);
     const r = await crearBuscadorVectorize({ db: env.DB, ai, indice }).buscar(t.id, "hola");
@@ -92,7 +102,7 @@ describe("conocimiento/buscador", () => {
   });
 
   it("buscar ignora ids de otra tienda", async () => {
-    const { t, a } = await tiendaConDos();
+    const { t, a } = await tiendaGrande();
     const otra = await crearTienda(env.DB, { nombre: "O" });
     const ajena = await crearConocimiento(env.DB, { tiendaId: otra.id, tipo: "faq", titulo: "X", contenido: "x", datosProducto: null });
     const { ai } = aiFalsa();
@@ -102,19 +112,19 @@ describe("conocimiento/buscador", () => {
   });
 
   it("si AI falla → respaldo con todo el conocimiento", async () => {
-    const { t } = await tiendaConDos();
+    const { t } = await tiendaGrande();
     const { ai } = aiFalsa({ falla: true });
     const { indice } = indiceFalso();
     const r = await crearBuscadorVectorize({ db: env.DB, ai, indice }).buscar(t.id, "hola");
-    expect(r.map((e) => e.titulo)).toEqual(["A", "B"]);
+    expect(r).toHaveLength(43);
   });
 
   it("sin resultados → respaldo con todo el conocimiento", async () => {
-    const { t } = await tiendaConDos();
+    const { t } = await tiendaGrande();
     const { ai } = aiFalsa();
     const { indice } = indiceFalso([]);
     const r = await crearBuscadorVectorize({ db: env.DB, ai, indice }).buscar(t.id, "hola");
-    expect(r).toHaveLength(2);
+    expect(r).toHaveLength(43);
   });
 
   it("borrar llama deleteByIds y con lista vacía no llama a nada", async () => {
@@ -132,5 +142,16 @@ describe("conocimiento/buscador", () => {
     await b.indexar([entrada(1)]);
     expect((await b.buscar(t.id, "x")).map((e) => e.titulo)).toEqual(["A", "B"]);
     expect((await crearBuscadorTodo(env.DB).buscar(t.id, "x")).length).toBe(2);
+  });
+
+  it("tiendas pequeñas (≤ umbral) usan todo el conocimiento sin consultar el índice", async () => {
+    const { t } = await tiendaConDos();
+    const { ai, llamadas } = aiFalsa();
+    const { indice, consultas } = indiceFalso(["x"]);
+    expect(UMBRAL_TODO_EL_CONOCIMIENTO).toBe(40);
+    const r = await crearBuscadorVectorize({ db: env.DB, ai, indice }).buscar(t.id, "hola");
+    expect(r).toHaveLength(2);
+    expect(consultas).toHaveLength(0);
+    expect(llamadas).toHaveLength(0);
   });
 });

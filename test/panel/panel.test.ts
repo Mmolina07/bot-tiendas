@@ -134,4 +134,26 @@ describe("panel", () => {
     expect((await get(`/panel/${b.id}/conocimiento/${e.id}/editar`)).status).toBe(404);
     expect((await post(`/panel/${b.id}/conocimiento/${e.id}`, { tipo: "faq", titulo: "X", contenido: "x" })).status).toBe(404);
   });
+
+  it("descartar pregunta → 303 y desaparece sin crear conocimiento", async () => {
+    const t = await nuevaTienda();
+    const p = await registrarPregunta(env.DB, t.id, null, "basura");
+    expect((await post(`/panel/${t.id}/preguntas/${p.id}/descartar`, {})).status).toBe(303);
+    expect(await listarPreguntasPendientes(env.DB, t.id)).toEqual([]);
+    expect(await listarConocimiento(env.DB, t.id)).toEqual([]);
+  });
+
+  it("importar CSV como archivo (multipart)", async () => {
+    const t = await nuevaTienda();
+    const form = new FormData();
+    form.append("archivo", new File(["tipo;titulo;contenido\nfaq;Desde archivo;ok"], "c.csv", { type: "text/csv" }));
+    const r = await exports.default.fetch(`https://x/panel/${t.id}/importar`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { authorization: AUTH, origin: "https://x" },
+      body: form,
+    });
+    expect(r.status).toBe(303);
+    expect((await listarConocimiento(env.DB, t.id)).map((e) => e.titulo)).toEqual(["Desde archivo"]);
+  });
 });

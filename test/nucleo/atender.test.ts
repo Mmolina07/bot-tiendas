@@ -123,4 +123,15 @@ describe("nucleo/atender", () => {
     expect(recibidas[0].sistema).toContain("Solo esta");
     expect(recibidas[0].sistema).not.toContain("No relevante");
   });
+
+  it("la búsqueda incluye el mensaje anterior del cliente para entender seguimientos", async () => {
+    const t = await crearTienda(env.DB, { nombre: "T" });
+    const consultas: string[] = [];
+    const buscador: Buscador = { buscar: async (_t, q) => (consultas.push(q), []), indexar: async () => {}, borrar: async () => {} };
+    const { ia } = iaFalsa(async () => "ok");
+    const cliente = crypto.randomUUID();
+    await atenderMensaje({ db: env.DB, ia, buscador }, { tiendaId: t.id, canal: "simulador", cliente, texto: "¿Tienen el Geisha?" });
+    await atenderMensaje({ db: env.DB, ia, buscador }, { tiendaId: t.id, canal: "simulador", cliente, texto: "¿y cuánto cuesta?" });
+    expect(consultas).toEqual(["¿Tienen el Geisha?", "¿Tienen el Geisha?\n¿y cuánto cuesta?"]);
+  });
 });

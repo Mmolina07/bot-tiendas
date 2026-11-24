@@ -144,3 +144,8 @@ export async function crearConocimientoEnLote(
   await db.batch(sentencias);
   return entradas;
 }
+
+export async function contarConocimiento(db: D1Database, tiendaId: string): Promise<number> {
+  const f = await db.prepare("SELECT COUNT(*) AS n FROM conocimiento WHERE tienda_id = ?").bind(tiendaId).first<{ n: number }>();
+  return f?.n ?? 0;
+}

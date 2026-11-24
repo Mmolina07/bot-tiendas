@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { csvAEntradas, leerCsv, MAX_FILAS_CSV } from "../../src/conocimiento/csv";
+import { csvAEntradas, decodificarCsv, leerCsv, MAX_FILAS_CSV } from "../../src/conocimiento/csv";
 
 const CAB = "tipo,titulo,contenido,precio,moneda,categoria";
 
@@ -62,5 +62,28 @@ describe("conocimiento/csv", () => {
     const r = csvAEntradas(`﻿${CAB}\n\nfaq,T,c,,,\n,,,,,\n`);
     expect(r.errores).toEqual([]);
     expect(r.entradas).toHaveLength(1);
+  });
+
+  it("una comilla en medio de un campo es literal y no se traga las filas siguientes", () => {
+    const r = csvAEntradas([CAB, 'producto,Pantalla 15",Monitor,500000,,', "faq,A,a,,,", "faq,B,b,,,"].join("\n"));
+    expect(r.errores).toEqual([]);
+    expect(r.entradas.map((e) => e.titulo)).toEqual(['Pantalla 15"', "A", "B"]);
+  });
+
+  it("comillas sin cerrar → error en su fila y se importan las anteriores", () => {
+    const r = csvAEntradas([CAB, "faq,A,a,,,", 'faq,"B sin cerrar,b,,,', "faq,C,c,,,"].join("\n"));
+    expect(r.entradas.map((e) => e.titulo)).toEqual(["A"]);
+    expect(r.errores).toEqual([{ fila: 3, motivo: "comillas sin cerrar" }]);
+  });
+
+  it("detecta el separador ; de Excel en español", () => {
+    const r = csvAEntradas(["tipo;titulo;contenido;precio;moneda;categoria", "producto;Café;Rico, suave;12.000;;", "faq;Horario;8 a 19;;;"].join("\n"));
+    expect(r.errores).toEqual([]);
+    expect(r.entradas.map((e) => [e.titulo, e.contenido])).toEqual([["Café", "Rico, suave"], ["Horario", "8 a 19"]]);
+  });
+
+  it("decodificarCsv acepta UTF-8 y Windows-1252", () => {
+    expect(decodificarCsv(new TextEncoder().encode("Café"))).toBe("Café");
+    expect(decodificarCsv(new Uint8Array([0x43, 0x61, 0x66, 0xe9]))).toBe("Café");
   });
 });

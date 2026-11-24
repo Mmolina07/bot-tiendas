@@ -102,6 +102,7 @@ function CamposEntrada(props: { e?: Partial<EntradaConocimiento> }) {
 export function PaginaPanel(props: {
   tienda: Tienda;
   preguntas: Pregunta[];
+  totalPreguntas: number;
   conocimiento: EntradaConocimiento[];
   aviso?: string;
   error?: string;
@@ -126,7 +127,10 @@ export function PaginaPanel(props: {
       {props.error && <p class="aviso error">{props.error}</p>}
 
       <section>
-        <h2>Preguntas sin respuesta ({preguntas.length})</h2>
+        <h2>Preguntas sin respuesta ({props.totalPreguntas})</h2>
+        {props.totalPreguntas > preguntas.length && (
+          <p class="suave">Mostrando las {preguntas.length} más recientes.</p>
+        )}
         {preguntas.length === 0 && <p class="suave">No hay preguntas pendientes. El bot está respondiendo todo 🎉</p>}
         {preguntas.map((p) => (
           <div class="pregunta">
@@ -136,6 +140,11 @@ export function PaginaPanel(props: {
               <label for={`r-${p.id}`}>Respuesta (se guarda como pregunta frecuente)</label>
               <textarea id={`r-${p.id}`} name="respuesta" required maxlength={4000} />
               <button type="submit">Enseñar al bot</button>
+            </form>
+            <form method="post" action={`${base}/preguntas/${encodeURIComponent(p.id)}/descartar`}>
+              <button class="peligro" type="submit" style="margin-top:8px">
+                Descartar
+              </button>
             </form>
           </div>
         ))}

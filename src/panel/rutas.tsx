@@ -2,10 +2,10 @@ import { type Context, Hono } from "hono";
 import { basicAuth } from "hono/basic-auth";
 import { csrf } from "hono/csrf";
 import { crearBuscador } from "../conocimiento/buscador";
-import { csvAEntradas, leerPrecio } from "../conocimiento/csv";
+import { csvAEntradas, decodificarCsv, leerPrecio } from "../conocimiento/csv";
 import { agregarEnLote, agregarEntrada, editarEntrada, quitarEntrada, reindexarTienda, resolverPregunta } from "../conocimiento/servicio";
 import { type DatosEntrada, listarConocimiento, obtenerConocimiento, type TipoConocimiento } from "../datos/conocimiento";
-import { listarPreguntasPendientes } from "../datos/preguntas";
+import { contarPreguntasPendientes, descartarPregunta, listarPreguntasPendientes } from "../datos/preguntas";
 import { obtenerTienda, type Tienda } from "../datos/tiendas";
 import type { Env } from "../tipos";
 import { PaginaEditar, PaginaNoEncontrada, PaginaPanel } from "./vistas";
@@ -15,6 +15,7 @@ type Ctx = Context<Ambiente>;
 
 const TIPOS: TipoConocimiento[] = ["faq", "producto", "politica"];
 const MAX_ERRORES_EN_AVISO = 5;
+const SIN_INDICE = " ⚠️ Se guardó, pero no se pudo actualizar la búsqueda: pulsa «Reindexar todo».";
 
 export const panel = new Hono<Ambiente>();
 
@@ -41,11 +42,15 @@ const volver = (c: Ctx, aviso: string) =>
 
 async function paginaPanel(c: Ctx, extra: { aviso?: string; error?: string }, estado: 200 | 400 = 200) {
   const tienda = c.var.tienda;
-  const [preguntas, conocimiento] = await Promise.all([
+  const [preguntas, totalPreguntas, conocimiento] = await Promise.all([
     listarPreguntasPendientes(c.env.DB, tienda.id),
+    contarPreguntasPendientes(c.env.DB, tienda.id),
     listarConocimiento(c.env.DB, tienda.id),
   ]);
-  return c.html(<PaginaPanel tienda={tienda} preguntas={preguntas} conocimiento={conocimiento} {...extra} />, estado);
+  return c.html(
+    <PaginaPanel tienda={tienda} preguntas={preguntas} totalPreguntas={totalPreguntas} conocimiento={conocimiento} {...extra} />,
+    estado,
+  );
 }
 
 /** Valida el formulario de una entrada. Devuelve los datos o el mensaje de error. */
@@ -73,8 +78,8 @@ panel.get("/:tiendaId", (c) => paginaPanel(c, { aviso: c.req.query("aviso") }));
 panel.post("/:tiendaId/conocimiento", async (c) => {
   const datos = leerFormularioEntrada(await c.req.parseBody());
   if (typeof datos === "string") return paginaPanel(c, { error: datos }, 400);
-  await agregarEntrada(deps(c), c.var.tienda.id, datos);
-  return volver(c, `Agregado: ${datos.titulo}`);
+  const { indexada } = await agregarEntrada(deps(c), c.var.tienda.id, datos);
+  return volver(c, `Agregado: ${datos.titulo}.${indexada ? "" : SIN_INDICE}`);
 });
 
 panel.get("/:tiendaId/conocimiento/:id/editar", async (c) => {
@@ -89,8 +94,8 @@ panel.post("/:tiendaId/conocimiento/:id", async (c) => {
   if (!actual) return c.html(<PaginaNoEncontrada />, 404);
   const datos = leerFormularioEntrada(await c.req.parseBody());
   if (typeof datos === "string") return c.html(<PaginaEditar tienda={c.var.tienda} entrada={actual} error={datos} />, 400);
-  await editarEntrada(deps(c), tiendaId, actual.id, datos);
-  return volver(c, `Guardado: ${datos.titulo}`);
+  const r = await editarEntrada(deps(c), tiendaId, actual.id, datos);
+  return volver(c, `Guardado: ${datos.titulo}.${r?.indexada === false ? SIN_INDICE : ""}`);
 });
 
 panel.post("/:tiendaId/conocimiento/:id/borrar", async (c) => {
@@ -103,24 +108,36 @@ panel.post("/:tiendaId/preguntas/:id/resolver", async (c) => {
   const f = await c.req.parseBody();
   const respuesta = typeof f.respuesta === "string" ? f.respuesta : "";
   if (!respuesta.trim() || respuesta.length > 4000) return paginaPanel(c, { error: "Escribe una respuesta (máximo 4000 caracteres)." }, 400);
-  const e = await resolverPregunta(deps(c), c.var.tienda.id, c.req.param("id"), respuesta);
-  if (!e) return c.html(<PaginaNoEncontrada />, 404);
-  return volver(c, `¡Aprendido! El bot ya responde: ${e.titulo}`);
+  const r = await resolverPregunta(deps(c), c.var.tienda.id, c.req.param("id"), respuesta);
+  if (!r) return c.html(<PaginaNoEncontrada />, 404);
+  return volver(c, `¡Aprendido! El bot ya responde: ${r.entrada.titulo}${r.indexada ? "" : `.${SIN_INDICE}`}`);
+});
+
+panel.post("/:tiendaId/preguntas/:id/descartar", async (c) => {
+  const ok = await descartarPregunta(c.env.DB, c.var.tienda.id, c.req.param("id"));
+  if (!ok) return c.html(<PaginaNoEncontrada />, 404);
+  return volver(c, "Pregunta descartada.");
 });
 
 panel.post("/:tiendaId/importar", async (c) => {
   const f = await c.req.parseBody();
   const archivo = f.archivo;
-  const texto = archivo instanceof File && archivo.size > 0 ? await archivo.text() : typeof f.csv === "string" ? f.csv : "";
+  const texto =
+    archivo instanceof File && archivo.size > 0
+      ? decodificarCsv(new Uint8Array(await archivo.arrayBuffer()))
+      : typeof f.csv === "string"
+        ? f.csv
+        : "";
   if (!texto.trim()) return paginaPanel(c, { error: "Sube un archivo CSV o pega su contenido." }, 400);
   const { entradas, errores } = csvAEntradas(texto);
-  const creadas = await agregarEnLote(deps(c), c.var.tienda.id, entradas);
+  const { entradas: creadas, indexada } = await agregarEnLote(deps(c), c.var.tienda.id, entradas);
   let aviso = `Importadas ${creadas.length} entradas.`;
   if (errores.length) {
     const detalle = errores.slice(0, MAX_ERRORES_EN_AVISO).map((e) => `fila ${e.fila} (${e.motivo})`).join(", ");
     const mas = errores.length > MAX_ERRORES_EN_AVISO ? ` y ${errores.length - MAX_ERRORES_EN_AVISO} más` : "";
     aviso += ` ${errores.length} filas con errores: ${detalle}${mas}.`;
   }
+  if (!indexada) aviso += SIN_INDICE;
   return volver(c, aviso);
 });
 

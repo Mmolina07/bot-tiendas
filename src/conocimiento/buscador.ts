@@ -1,9 +1,11 @@
-import { type EntradaConocimiento, listarConocimiento, obtenerConocimientoPorIds } from "../datos/conocimiento";
+import { contarConocimiento, type EntradaConocimiento, listarConocimiento, obtenerConocimientoPorIds } from "../datos/conocimiento";
 import { formatearMiles } from "../nucleo/prompt";
 import type { Env } from "../tipos";
 
 export const MODELO_EMBEDDINGS = "@cf/baai/bge-m3";
 export const RESULTADOS_BUSQUEDA = 8;
+/** Con pocas entradas cabe todo en el prompt y se responde mejor que con solo las más parecidas. */
+export const UMBRAL_TODO_EL_CONOCIMIENTO = 40;
 const TAMANO_LOTE = 100;
 
 /** Encuentra el conocimiento relevante para una pregunta y mantiene el índice al día. */
@@ -43,6 +45,7 @@ export function crearBuscadorVectorize(op: { db: D1Database; ai: Ai; indice: Vec
   return {
     async buscar(tiendaId, texto) {
       try {
+        if ((await contarConocimiento(db, tiendaId)) <= UMBRAL_TODO_EL_CONOCIMIENTO) return respaldo.buscar(tiendaId, texto);
         const [vector] = await embeber([texto]);
         const { matches } = await indice.query(vector, { topK: RESULTADOS_BUSQUEDA, filter: { tiendaId } });
         const encontradas = await obtenerConocimientoPorIds(db, tiendaId, matches.map((m) => m.id));

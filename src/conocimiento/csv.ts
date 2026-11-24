@@ -7,12 +7,19 @@ export type ErrorFila = { fila: number; motivo: string }; // fila = número de r
 const TIPOS: TipoConocimiento[] = ["faq", "producto", "politica"];
 const OBLIGATORIAS = ["tipo", "titulo", "contenido"] as const;
 
-/** Parser CSV (RFC 4180): comillas, "" escapadas, comas y saltos de línea dentro de comillas, \r\n. */
-export function leerCsv(texto: string): string[][] {
+type Lectura = { filas: string[][]; sinCerrarDesde: number | null }; // índice (base 0) del registro con comillas abiertas
+
+/**
+ * Parser CSV (RFC 4180) tolerante: las comillas solo abren un campo si están al inicio del campo
+ * (una comilla en medio, como 15", es literal), y reporta comillas que nunca se cierran.
+ */
+function leerCsvDetallado(texto: string, sep: string): Lectura {
   const filas: string[][] = [];
   let fila: string[] = [];
   let campo = "";
   let enComillas = false;
+  let inicioCampo = true;
+  let sinCerrarDesde: number | null = null;
   for (let i = 0; i < texto.length; i++) {
     const ch = texto[i];
     if (enComillas) {
@@ -21,23 +28,53 @@ export function leerCsv(texto: string): string[][] {
         i++;
       } else if (ch === '"') enComillas = false;
       else campo += ch;
-    } else if (ch === '"') enComillas = true;
-    else if (ch === ",") {
+      continue;
+    }
+    if (ch === '"' && inicioCampo) {
+      enComillas = true;
+      inicioCampo = false;
+      sinCerrarDesde = filas.length;
+    } else if (ch === sep) {
       fila.push(campo);
       campo = "";
+      inicioCampo = true;
     } else if (ch === "\n" || ch === "\r") {
       if (ch === "\r" && texto[i + 1] === "\n") i++;
       fila.push(campo);
       filas.push(fila);
       fila = [];
       campo = "";
-    } else campo += ch;
+      inicioCampo = true;
+    } else {
+      campo += ch;
+      inicioCampo = false;
+    }
   }
-  if (campo !== "" || fila.length > 0) {
+  if (campo !== "" || fila.length > 0 || enComillas) {
     fila.push(campo);
     filas.push(fila);
   }
-  return filas;
+  return { filas, sinCerrarDesde: enComillas ? sinCerrarDesde : null };
+}
+
+/** Excel en español usa ";" como separador: se elige el que más aparece en la primera línea. */
+function detectarSeparador(texto: string): string {
+  const primera = texto.split(/\r?\n/, 1)[0] ?? "";
+  const cuenta = (c: string) => primera.split(c).length - 1;
+  return cuenta(";") > cuenta(",") ? ";" : ",";
+}
+
+export function leerCsv(texto: string, sep = ","): string[][] {
+  return leerCsvDetallado(texto, sep).filas;
+}
+
+/** Bytes de un archivo subido → texto. Acepta UTF-8 y, si no es válido, Windows-1252 (CSV de Excel antiguo). */
+export function decodificarCsv(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes);
+  } catch {
+    return new TextDecoder("windows-1252").decode(bytes);
+  }
 }
 
 /** "12000", "12.000", "1.250.000", "12,000" y "12000.5" → número; cualquier otra cosa → null. */
@@ -49,7 +86,11 @@ export function leerPrecio(crudo: string): number | null {
 }
 
 export function csvAEntradas(texto: string): { entradas: DatosEntrada[]; errores: ErrorFila[] } {
-  const registros = leerCsv(texto.replace(/^﻿/, ""));
+  const limpio = texto.replace(/^\uFEFF/, "");
+  const { filas: leidas, sinCerrarDesde } = leerCsvDetallado(limpio, detectarSeparador(limpio));
+  // Un campo con comillas sin cerrar se traga el resto del archivo: se descarta desde ahí y se informa.
+  const registros = sinCerrarDesde === null ? leidas : leidas.slice(0, sinCerrarDesde);
+  const errorComillas: ErrorFila[] = sinCerrarDesde === null ? [] : [{ fila: sinCerrarDesde + 1, motivo: "comillas sin cerrar" }];
   if (registros.length === 0) return { entradas: [], errores: [{ fila: 1, motivo: "archivo vacío" }] };
 
   const cabecera = registros[0].map((c) => c.trim().toLowerCase());
@@ -91,5 +132,5 @@ export function csvAEntradas(texto: string): { entradas: DatosEntrada[]; errores
         });
     }
   }
-  return { entradas, errores };
+  return { entradas, errores: [...errores, ...errorComillas] };
 }

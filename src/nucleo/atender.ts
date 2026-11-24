@@ -45,10 +45,10 @@ export async function atenderMensaje(
   const conv = await obtenerOCrearConversacion(db, tienda.id, m.canal, m.cliente);
   await guardarMensaje(db, conv.id, "cliente", m.texto);
 
-  const [historial, conocimiento] = await Promise.all([
-    ultimosMensajes(db, conv.id, LIMITE_HISTORIAL),
-    buscador.buscar(tienda.id, m.texto),
-  ]);
+  const historial = await ultimosMensajes(db, conv.id, LIMITE_HISTORIAL);
+  // Se busca con el mensaje anterior del cliente también, para entender seguimientos como "¿y cuánto cuesta?".
+  const delCliente = historial.filter((h) => h.rol === "cliente").slice(-2).map((h) => h.texto);
+  const conocimiento = await buscador.buscar(tienda.id, delCliente.join("\n"));
   const mensajes: MensajeIA[] = historial.map((h) => ({ rol: h.rol === "cliente" ? "cliente" : "bot", texto: h.texto }));
   // El modelo espera que la conversación empiece con el cliente.
   while (mensajes.length > 1 && mensajes[0].rol !== "cliente") mensajes.shift();
