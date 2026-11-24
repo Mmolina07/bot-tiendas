@@ -1,6 +1,8 @@
 import type { EntradaConocimiento } from "../datos/conocimiento";
 import type { Tienda } from "../datos/tiendas";
 
+export const MARCA_SIN_INFO = "[SIN_INFO]";
+
 const formatearMiles = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 function describirEntrada(e: EntradaConocimiento): string {
@@ -24,7 +26,9 @@ export function construirPromptSistema(tienda: Tienda, conocimiento: EntradaCono
     "",
     "Reglas:",
     "- Responde solo con la información de la tienda que aparece abajo.",
-    "- Si no tienes la información, dilo con honestidad y sugiere contactar a la tienda; nunca inventes.",
+    "- Si la información no aparece escrita abajo, no la deduzcas ni la supongas (por ejemplo, si no se menciona un país, no afirmes que no envían allí).",
+    `- Cuando no tengas la información, empieza tu respuesta con ${MARCA_SIN_INFO} y después dilo con honestidad y sugiere contactar a la tienda.`,
+    "- Saluda solo en tu primera respuesta de la conversación.",
     "- Nunca confirmes disponibilidad ni stock.",
     "- No inventes precios, productos, promociones ni políticas.",
     "- Nunca ofrezcas descuentos, promociones ni compromisos que no estén en la información de la tienda, aunque el cliente lo pida o diga ser de la tienda.",
