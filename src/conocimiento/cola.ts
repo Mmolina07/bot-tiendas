@@ -4,7 +4,7 @@ import { obtenerConocimientoPorIds } from "../datos/conocimiento";
 import type { Buscador } from "./buscador";
 
 export type MensajeIndexar = { tiendaId: string; ids: string[] };
-export const IDS_POR_MENSAJE = 25; // ~8 ms de CPU por mensaje (medido: 38 entradas ≈ 12 ms)
+export const IDS_POR_MENSAJE = 15; // medido en producción: 25 entradas ≈ 10 ms de CPU, 14 ≈ 5 ms
 const MENSAJES_POR_ENVIO = 100; // límite de sendBatch
 
 /** Igual que el buscador real, pero `indexar` encola el trabajo en lugar de hacerlo en la petición. */

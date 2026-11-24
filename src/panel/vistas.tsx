@@ -104,6 +104,9 @@ export function PaginaPanel(props: {
   preguntas: Pregunta[];
   totalPreguntas: number;
   conocimiento: EntradaConocimiento[];
+  totalConocimiento: number;
+  pagina: number;
+  paginas: number;
   aviso?: string;
   error?: string;
 }) {
@@ -114,7 +117,7 @@ export function PaginaPanel(props: {
       <header class="barra">
         <div>
           <h1>{tienda.nombre}</h1>
-          <span class="suave">Panel de la tienda · {conocimiento.length} entradas de conocimiento</span>
+          <span class="suave">Panel de la tienda · {props.totalConocimiento} entradas de conocimiento</span>
         </div>
         <form method="post" action={`${base}/reindexar`}>
           <button class="secundario" type="submit">
@@ -213,6 +216,15 @@ export function PaginaPanel(props: {
             ))}
           </tbody>
         </table>
+        {props.paginas > 1 && (
+          <nav class="acciones" style="margin-top:12px" aria-label="Páginas">
+            {props.pagina > 1 && <a href={`${base}?pagina=${props.pagina - 1}`}>← Anterior</a>}
+            <span class="suave">
+              Página {props.pagina} de {props.paginas}
+            </span>
+            {props.pagina < props.paginas && <a href={`${base}?pagina=${props.pagina + 1}`}>Siguiente →</a>}
+          </nav>
+        )}
       </section>
     </Layout>
   );

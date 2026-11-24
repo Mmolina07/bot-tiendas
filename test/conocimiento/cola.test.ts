@@ -53,11 +53,12 @@ describe("conocimiento/cola", () => {
     const base = buscadorFalso();
     const b = crearBuscadorEncolado(base.buscador, cola);
     await b.indexar([...Array.from({ length: 60 }, (_, i) => entrada(i, "A")), ...Array.from({ length: 3 }, (_, i) => entrada(i, "B"))]);
-    expect(IDS_POR_MENSAJE).toBe(25);
+    expect(IDS_POR_MENSAJE).toBe(15);
     expect(enviados.map((m) => [m.tiendaId, m.ids.length])).toEqual([
-      ["A", 25],
-      ["A", 25],
-      ["A", 10],
+      ["A", 15],
+      ["A", 15],
+      ["A", 15],
+      ["A", 15],
       ["B", 3],
     ]);
     expect(base.indexadas).toEqual([]);

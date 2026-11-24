@@ -1,6 +1,6 @@
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
-import { crearConocimiento, listarConocimiento } from "../../src/datos/conocimiento";
+import { crearConocimiento, crearConocimientoEnLote, listarConocimiento } from "../../src/datos/conocimiento";
 import { listarPreguntasPendientes, registrarPregunta } from "../../src/datos/preguntas";
 import { crearTienda } from "../../src/datos/tiendas";
 
@@ -155,5 +155,24 @@ describe("panel", () => {
     });
     expect(r.status).toBe(303);
     expect((await listarConocimiento(env.DB, t.id)).map((e) => e.titulo)).toEqual(["Desde archivo"]);
+  });
+
+  it("la lista de conocimiento se pagina de 50 en 50", async () => {
+    const t = await nuevaTienda();
+    await crearConocimientoEnLote(
+      env.DB,
+      t.id,
+      Array.from({ length: 60 }, (_, i) => ({ tipo: "faq" as const, titulo: `Entrada ${String(i).padStart(2, "0")}`, contenido: "c", datosProducto: null })),
+    );
+    const p1 = await (await get(`/panel/${t.id}`)).text();
+    expect(p1).toContain("Entrada 00");
+    expect(p1).toContain("Entrada 49");
+    expect(p1).not.toContain("Entrada 50");
+    expect(p1).toContain(`/panel/${t.id}?pagina=2`);
+    const p2 = await (await get(`/panel/${t.id}?pagina=2`)).text();
+    expect(p2).toContain("Entrada 50");
+    expect(p2).toContain("Entrada 59");
+    expect(p2).not.toContain("Entrada 49");
+    expect((await get(`/panel/${t.id}?pagina=abc`)).status).toBe(200);
   });
 });

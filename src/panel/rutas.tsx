@@ -4,7 +4,13 @@ import { csrf } from "hono/csrf";
 import { crearBuscador } from "../conocimiento/buscador";
 import { csvAEntradas, decodificarCsv, leerPrecio } from "../conocimiento/csv";
 import { agregarEnLote, agregarEntrada, editarEntrada, quitarEntrada, reindexarTienda, resolverPregunta } from "../conocimiento/servicio";
-import { type DatosEntrada, listarConocimiento, obtenerConocimiento, type TipoConocimiento } from "../datos/conocimiento";
+import {
+  contarConocimiento,
+  type DatosEntrada,
+  listarConocimientoPagina,
+  obtenerConocimiento,
+  type TipoConocimiento,
+} from "../datos/conocimiento";
 import { contarPreguntasPendientes, descartarPregunta, listarPreguntasPendientes } from "../datos/preguntas";
 import { obtenerTienda, type Tienda } from "../datos/tiendas";
 import type { Env } from "../tipos";
@@ -15,6 +21,8 @@ type Ctx = Context<Ambiente>;
 
 const TIPOS: TipoConocimiento[] = ["faq", "producto", "politica"];
 const MAX_ERRORES_EN_AVISO = 5;
+// La página se renderiza dentro del límite de CPU del plan gratuito solo si no es enorme.
+const ENTRADAS_POR_PAGINA = 50;
 const SIN_INDICE = " ⚠️ Se guardó, pero no se pudo actualizar la búsqueda: pulsa «Reindexar todo».";
 
 export const panel = new Hono<Ambiente>();
@@ -42,13 +50,25 @@ const volver = (c: Ctx, aviso: string) =>
 
 async function paginaPanel(c: Ctx, extra: { aviso?: string; error?: string }, estado: 200 | 400 = 200) {
   const tienda = c.var.tienda;
-  const [preguntas, totalPreguntas, conocimiento] = await Promise.all([
+  const pedida = Number.parseInt(c.req.query("pagina") ?? "1", 10);
+  const pagina = Number.isFinite(pedida) && pedida > 0 ? pedida : 1;
+  const [preguntas, totalPreguntas, conocimiento, totalConocimiento] = await Promise.all([
     listarPreguntasPendientes(c.env.DB, tienda.id),
     contarPreguntasPendientes(c.env.DB, tienda.id),
-    listarConocimiento(c.env.DB, tienda.id),
+    listarConocimientoPagina(c.env.DB, tienda.id, ENTRADAS_POR_PAGINA, (pagina - 1) * ENTRADAS_POR_PAGINA),
+    contarConocimiento(c.env.DB, tienda.id),
   ]);
   return c.html(
-    <PaginaPanel tienda={tienda} preguntas={preguntas} totalPreguntas={totalPreguntas} conocimiento={conocimiento} {...extra} />,
+    <PaginaPanel
+      tienda={tienda}
+      preguntas={preguntas}
+      totalPreguntas={totalPreguntas}
+      conocimiento={conocimiento}
+      totalConocimiento={totalConocimiento}
+      pagina={pagina}
+      paginas={Math.max(1, Math.ceil(totalConocimiento / ENTRADAS_POR_PAGINA))}
+      {...extra}
+    />,
     estado,
   );
 }

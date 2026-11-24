@@ -149,3 +149,17 @@ export async function contarConocimiento(db: D1Database, tiendaId: string): Prom
   const f = await db.prepare("SELECT COUNT(*) AS n FROM conocimiento WHERE tienda_id = ?").bind(tiendaId).first<{ n: number }>();
   return f?.n ?? 0;
 }
+
+/** Una página del conocimiento de la tienda (mismo orden que listarConocimiento). */
+export async function listarConocimientoPagina(
+  db: D1Database,
+  tiendaId: string,
+  limite: number,
+  desde: number,
+): Promise<EntradaConocimiento[]> {
+  const { results } = await db
+    .prepare(`SELECT ${COLUMNAS} FROM conocimiento WHERE tienda_id = ? ORDER BY tipo, titulo LIMIT ? OFFSET ?`)
+    .bind(tiendaId, limite, desde)
+    .all<Fila>();
+  return results.map(aEntrada);
+}
