@@ -8,6 +8,7 @@ export default defineConfig({
       miniflare: {
         bindings: {
           ENTORNO: "test",
+          GEMINI_API_KEY: "clave-de-prueba",
           TEST_MIGRATIONS: await readD1Migrations("./migrations"),
         },
       },

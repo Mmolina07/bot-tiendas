@@ -5,6 +5,10 @@
   "compatibility_date": "2026-11-23",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  "vars": {
+    "GEMINI_MODELO": "gemini-2.5-flash",
+    "DEMO_TIENDA_ID": "demo-tostadero"
+  },
   "d1_databases": [
     {
       "binding": "DB",

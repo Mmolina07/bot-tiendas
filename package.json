@@ -6,7 +6,7 @@
     "dev": "wrangler dev",
     "test": "vitest run",
     "deploy": "wrangler deploy",
-    "tipos": "wrangler types",
+    "tipos": "wrangler types --strict-vars=false",
     "db:migrar:local": "wrangler d1 migrations apply bot-tiendas-db --local",
     "db:migrar:remoto": "wrangler d1 migrations apply bot-tiendas-db --remote"
   },

@@ -1,10 +1,13 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
+import { simulador } from "./canales/simulador";
 import type { Env } from "./tipos";
 
 export const app = new Hono<{ Bindings: Env }>();
 
 app.get("/salud", (c) => c.json({ ok: true, servicio: "bot-tiendas" }));
+
+app.route("/api/simulador", simulador);
 
 // Ruta solo para pruebas: permite verificar el manejo de errores no controlados.
 app.get("/_prueba/error", (c, next) => {
