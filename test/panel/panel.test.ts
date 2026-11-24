@@ -110,7 +110,7 @@ describe("panel", () => {
     await crearConocimiento(env.DB, { tiendaId: t.id, tipo: "faq", titulo: "A", contenido: "a", datosProducto: null });
     const r = await post(`/panel/${t.id}/reindexar`, {});
     expect(r.status).toBe(303);
-    expect(decodeURIComponent(r.headers.get("location") ?? "")).toContain("Indexadas 1 entradas");
+    expect(decodeURIComponent(r.headers.get("location") ?? "")).toContain("Indexando 1 entradas");
   });
 
   it("contenido con <script> se escapa", async () => {

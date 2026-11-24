@@ -20,6 +20,11 @@
   ],
   "ai": { "binding": "AI" },
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "bot-tiendas-conocimiento" }],
+  // Indexación en segundo plano: un mensaje (≤25 entradas) por invocación para no pasar el límite de CPU.
+  "queues": {
+    "producers": [{ "binding": "COLA_INDEXAR", "queue": "bot-tiendas-indexar" }],
+    "consumers": [{ "queue": "bot-tiendas-indexar", "max_batch_size": 1, "max_retries": 3 }]
+  },
   "env": {
     // Entorno de pruebas: sin AI ni Vectorize (no existen en local), así el bot usa todo el conocimiento.
     "test": {

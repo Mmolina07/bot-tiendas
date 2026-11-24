@@ -143,5 +143,5 @@ panel.post("/:tiendaId/importar", async (c) => {
 
 panel.post("/:tiendaId/reindexar", async (c) => {
   const n = await reindexarTienda(deps(c), c.var.tienda.id);
-  return volver(c, `Indexadas ${n} entradas.`);
+  return volver(c, `Indexando ${n} entradas; el bot las usará en unos segundos.`);
 });

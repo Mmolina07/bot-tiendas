@@ -1,6 +1,7 @@
 import { contarConocimiento, type EntradaConocimiento, listarConocimiento, obtenerConocimientoPorIds } from "../datos/conocimiento";
 import { formatearMiles } from "../nucleo/prompt";
 import type { Env } from "../tipos";
+import { crearBuscadorEncolado } from "./cola";
 
 export const MODELO_EMBEDDINGS = "@cf/baai/bge-m3";
 export const RESULTADOS_BUSQUEDA = 8;
@@ -70,8 +71,18 @@ export function crearBuscadorVectorize(op: { db: D1Database; ai: Ai; indice: Vec
   };
 }
 
-/** Vectorize si el Worker tiene los bindings; si no (pruebas, cuenta sin índice), todo el conocimiento. */
-export function crearBuscador(env: Env): Buscador {
+/** Buscador directo con Vectorize (sin cola); lo usa el consumidor de la cola. */
+export function crearBuscadorDirecto(env: Env): Buscador {
   if (!env.AI || !env.VECTORIZE) return crearBuscadorTodo(env.DB);
   return crearBuscadorVectorize({ db: env.DB, ai: env.AI, indice: env.VECTORIZE });
+}
+
+/**
+ * Vectorize si el Worker tiene los bindings; si no (pruebas, cuenta sin índice), todo el conocimiento.
+ * Con cola, la indexación se hace en segundo plano para no pasar el límite de CPU de la petición.
+ */
+export function crearBuscador(env: Env): Buscador {
+  const directo = crearBuscadorDirecto(env);
+  if (!env.AI || !env.VECTORIZE || !env.COLA_INDEXAR) return directo;
+  return crearBuscadorEncolado(directo, env.COLA_INDEXAR);
 }
