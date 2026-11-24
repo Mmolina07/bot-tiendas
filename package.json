@@ -1,0 +1,28 @@
+{
+  "name": "bot-tiendas",
+  "version": "1.0.0",
+  "description": "Bot de atención para tiendas por WhatsApp",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "deploy": "wrangler deploy",
+    "tipos": "wrangler types",
+    "db:migrar:local": "wrangler d1 migrations apply bot-tiendas-db --local",
+    "db:migrar:remoto": "wrangler d1 migrations apply bot-tiendas-db --remote"
+  },
+  "type": "module",
+  "dependencies": {
+    "hono": "^4.13.21"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.9.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.167.0"
+  },
+  "allowScripts": {
+    "workerd@1.20261123.1": true,
+    "esbuild@0.28.2": true
+  },
+  "private": true
+}
