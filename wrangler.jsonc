@@ -17,5 +17,25 @@
       "database_id": "740a8b00-75df-44a4-8a0a-ed99613b3417",
       "migrations_dir": "migrations"
     }
-  ]
+  ],
+  "ai": { "binding": "AI" },
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "bot-tiendas-conocimiento" }],
+  "env": {
+    // Entorno de pruebas: sin AI ni Vectorize (no existen en local), así el bot usa todo el conocimiento.
+    "test": {
+      "assets": { "directory": "public", "binding": "ASSETS" },
+      "vars": {
+        "GEMINI_MODELO": "gemini-3.5-flash",
+        "DEMO_TIENDA_ID": "demo-tostadero"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bot-tiendas-db",
+          "database_id": "740a8b00-75df-44a4-8a0a-ed99613b3417",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
 }

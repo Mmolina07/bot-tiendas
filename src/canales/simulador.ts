@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { ultimosMensajes, obtenerOCrearConversacion } from "../datos/conversaciones";
+import { crearBuscador } from "../conocimiento/buscador";
 import { obtenerTienda } from "../datos/tiendas";
 import { crearProveedorIA } from "../ia/crear";
 import { atenderMensaje, TiendaNoEncontrada } from "../nucleo/atender";
@@ -50,7 +51,7 @@ simulador.post("/mensaje", async (c) => {
 
   try {
     const r = await atenderMensaje(
-      { db: c.env.DB, ia: crearProveedorIA(c.env) },
+      { db: c.env.DB, ia: crearProveedorIA(c.env), buscador: crearBuscador(c.env) },
       { tiendaId: c.env.DEMO_TIENDA_ID, canal: "simulador", cliente: clienteDe(c), texto },
     );
     return c.json({ respuesta: r.respuesta, huboErrorIA: r.huboErrorIA });

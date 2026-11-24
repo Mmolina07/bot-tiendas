@@ -1,4 +1,4 @@
-import { listarConocimiento } from "../datos/conocimiento";
+import type { Buscador } from "../conocimiento/buscador";
 import { type Canal, guardarMensaje, obtenerOCrearConversacion, ultimosMensajes } from "../datos/conversaciones";
 import { registrarPregunta } from "../datos/preguntas";
 import { obtenerTienda } from "../datos/tiendas";
@@ -35,10 +35,10 @@ function separarMarca(texto: string): { limpio: string; sinInformacion: boolean 
 
 /** Núcleo del bot, independiente del canal: guarda, arma contexto, consulta la IA y guarda la respuesta. */
 export async function atenderMensaje(
-  deps: { db: D1Database; ia: ProveedorIA },
+  deps: { db: D1Database; ia: ProveedorIA; buscador: Buscador },
   m: MensajeEntrante,
 ): Promise<ResultadoAtencion> {
-  const { db, ia } = deps;
+  const { db, ia, buscador } = deps;
   const tienda = await obtenerTienda(db, m.tiendaId);
   if (!tienda) throw new TiendaNoEncontrada(m.tiendaId);
 
@@ -47,7 +47,7 @@ export async function atenderMensaje(
 
   const [historial, conocimiento] = await Promise.all([
     ultimosMensajes(db, conv.id, LIMITE_HISTORIAL),
-    listarConocimiento(db, tienda.id),
+    buscador.buscar(tienda.id, m.texto),
   ]);
   const mensajes: MensajeIA[] = historial.map((h) => ({ rol: h.rol === "cliente" ? "cliente" : "bot", texto: h.texto }));
   // El modelo espera que la conversación empiece con el cliente.

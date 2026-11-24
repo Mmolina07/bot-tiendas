@@ -76,3 +76,15 @@ export async function listarConocimiento(db: D1Database, tiendaId: string): Prom
     .all<Fila>();
   return results.map(aEntrada);
 }
+
+/** Entradas de la tienda con esos ids, en el mismo orden de `ids`; ignora las que no existen o son de otra tienda. */
+export async function obtenerConocimientoPorIds(db: D1Database, tiendaId: string, ids: string[]): Promise<EntradaConocimiento[]> {
+  if (ids.length === 0) return [];
+  const marcas = ids.map(() => "?").join(", ");
+  const { results } = await db
+    .prepare(`SELECT ${COLUMNAS} FROM conocimiento WHERE tienda_id = ? AND id IN (${marcas})`)
+    .bind(tiendaId, ...ids)
+    .all<Fila>();
+  const porId = new Map(results.map((f) => [f.id, aEntrada(f)]));
+  return ids.flatMap((id) => porId.get(id) ?? []);
+}

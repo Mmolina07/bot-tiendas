@@ -3,7 +3,7 @@ import type { Tienda } from "../datos/tiendas";
 
 export const MARCA_SIN_INFO = "[SIN_INFO]";
 
-const formatearMiles = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+export const formatearMiles = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 function describirEntrada(e: EntradaConocimiento): string {
   if (e.tipo === "producto" && e.datosProducto) {
